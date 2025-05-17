@@ -86,6 +86,8 @@ Maturity Level: {maturity}
                     title_line, content = lines
                 else:
                     title_line, content = lines[0], ""
+                content = re.sub(r"(?m)^\* ", "- ", content)  # replace asterisk at line-start with dash
+
 
                 # Clean up Markdown symbols from title
                 cleaned_title = clean_title(title_line)
