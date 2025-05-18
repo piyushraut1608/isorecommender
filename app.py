@@ -3,6 +3,11 @@ import google.generativeai as genai
 import os
 import re
 from dotenv import load_dotenv
+from fpdf import FPDF
+import datetime
+
+
+
 
 # Load API key from .env if available
 load_dotenv()
@@ -34,11 +39,34 @@ st.text("Made by Piyush")
 def clean_title(text):
     return re.sub(r"[#*_`]", "", text).strip()
 
+def generate_pdf(text: str) -> bytes:
+    # Clean and simplify formatting for PDF
+    text = text.replace("–", "-").replace("—", "-")
+    text = text.replace("•", "*").replace("’", "'").replace("“", '"').replace("”", '"')
+    
+    # Remove markdown-style bold and headers
+    text = re.sub(r"\*\*(.*?)\*\*", r"\1", text)  # Remove **bold**
+    text = re.sub(r"#+\s*", "", text)             # Remove markdown headers like ###
+
+    text = text.encode("latin-1", "replace").decode("latin-1")
+
+    pdf = FPDF()
+    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.add_page()
+    pdf.set_font("Arial", size=12)
+
+    for line in text.splitlines():
+        pdf.multi_cell(0, 10, line)
+
+    return pdf.output(dest="S").encode("latin-1")
+
+
+
 if submitted:
     if not api_key:
         st.stop()
 
-    st.info("Generating recommendations with Gemini 2.0 Flash...")
+    #st.info("Generating recommendations with Gemini 2.0 Flash...")
 
     prompt = f"""
 You are an ISO 27001:2022 compliance assistant.
@@ -74,6 +102,15 @@ Maturity Level: {maturity}
         output = re.sub(r"</?div>", "", output, flags=re.IGNORECASE)
         output = re.sub(r"<hr\s*/?>", "---", output)
 
+        pdf_data = generate_pdf(output)
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        st.download_button(
+            label="📄 Download Recommendations as PDF",
+            data=pdf_data,
+            file_name=f"ISO_Recommendations_{timestamp}.pdf",
+            mime="application/pdf"
+        )
+
 
         st.subheader("📋 Recommended Controls as per Annexure A")
 
@@ -86,11 +123,11 @@ Maturity Level: {maturity}
                     title_line, content = lines
                 else:
                     title_line, content = lines[0], ""
-                content = re.sub(r"(?m)^\* ", "- ", content)  # replace asterisk at line-start with dash
-
 
                 # Clean up Markdown symbols from title
                 cleaned_title = clean_title(title_line)
+
+                
 
                 st.markdown(
                     f"""
@@ -103,6 +140,9 @@ Maturity Level: {maturity}
 """,
                     unsafe_allow_html=True
                 )
+
+        
+
 
 
 
